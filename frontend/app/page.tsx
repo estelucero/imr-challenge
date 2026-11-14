@@ -1,10 +1,17 @@
 import { Chat } from "@/components/chat/chat";
-export default function Home() {
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/chat/sidebar";
+export default function Home({ children }: { children: React.ReactNode }) {
     return (
-        <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-            <main className="">
-                <Chat />
-            </main>
+        <div>
+            <SidebarProvider>
+                <AppSidebar />
+                <main>
+                    <SidebarTrigger />
+                    {children}
+                    <Chat />
+                </main>
+            </SidebarProvider>
         </div>
     );
 }
