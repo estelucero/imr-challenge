@@ -2,6 +2,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { ArrowUpIcon, PencilIcon, WorkflowIcon } from "lucide-react";
+import { type ChatMessage } from "@/lib/chat/sessions";
 
 import {
     BpmnEditorDialog,
@@ -31,21 +32,19 @@ const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
     loading: () => <Skeleton className="h-full w-full" />,
 });
 
-type ChatMessageBpmn = {
-    id: string;
-    name: string;
-    xml: string;
+type ChatProps = {
+    messages: ChatMessage[];
+    onUserMessage: (text: string) => void;
+    onAssistantMessage: (message: ChatMessage) => void;
+    onUpdateBpmnXml: (messageId: string, xml: string) => void;
 };
 
-type ChatMessage = {
-    id: string;
-    role: "user" | "assistant";
-    text: string;
-    bpmn?: ChatMessageBpmn;
-};
-
-export function Chat() {
-    const [messages, setMessages] = React.useState<ChatMessage[]>([]);
+export function Chat({
+    messages,
+    onUserMessage,
+    onAssistantMessage,
+    onUpdateBpmnXml,
+}: ChatProps) {
     const [draft, setDraft] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
     const [editorOpen, setEditorOpen] = React.useState(false);
@@ -61,10 +60,7 @@ export function Chat() {
         const text = draft.trim();
         if (!text || isLoading) return;
 
-        setMessages((prev) => [
-            ...prev,
-            { id: crypto.randomUUID(), role: "user", text },
-        ]);
+        onUserMessage(text);
         setDraft("");
         setIsLoading(true);
 
@@ -73,15 +69,12 @@ export function Chat() {
         // Mock de la respuesta del chatbot: cuando exista el backend,
         // reemplazar por un fetch que devuelva { text, bpmnXml }.
         window.setTimeout(() => {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: crypto.randomUUID(),
-                    role: "assistant",
-                    text: `Listo, generé el proceso para "${text}". Tocá el diagrama para editarlo.`,
-                    bpmn: { id: crypto.randomUUID(), name: text, xml },
-                },
-            ]);
+            onAssistantMessage({
+                id: crypto.randomUUID(),
+                role: "assistant",
+                text: `Listo, generé el proceso para "${text}". Tocá el diagrama para editarlo.`,
+                bpmn: { id: crypto.randomUUID(), name: text, xml },
+            });
             setIsLoading(false);
         }, 900);
     }
@@ -106,13 +99,7 @@ export function Chat() {
         if (!active) return;
 
         const messageId = active.messageId;
-        setMessages((prev) =>
-            prev.map((message) =>
-                message.id === messageId && message.bpmn
-                    ? { ...message, bpmn: { ...message.bpmn, xml } }
-                    : message,
-            ),
-        );
+        onUpdateBpmnXml(messageId, xml);
     }
 
     return (
@@ -164,8 +151,7 @@ export function Chat() {
                                                     {message.bpmn && (
                                                         <DiagramPreview
                                                             xml={
-                                                                message.bpmn
-                                                                    .xml
+                                                                message.bpmn.xml
                                                             }
                                                             onOpen={() =>
                                                                 openEditor(
@@ -190,7 +176,8 @@ export function Chat() {
                                                         variant="secondary"
                                                     >
                                                         <BubbleContent className="text-muted-foreground">
-                                                            Generando diagrama...
+                                                            Generando
+                                                            diagrama...
                                                         </BubbleContent>
                                                     </Bubble>
                                                     <Skeleton className="h-52 w-80 max-w-full rounded-xl" />
@@ -252,13 +239,7 @@ export function Chat() {
     );
 }
 
-function DiagramPreview({
-    xml,
-    onOpen,
-}: {
-    xml: string;
-    onOpen: () => void;
-}) {
+function DiagramPreview({ xml, onOpen }: { xml: string; onOpen: () => void }) {
     return (
         <div className="group/preview w-80 max-w-full overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-ring/60">
             <button
