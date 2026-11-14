@@ -18,6 +18,7 @@ import {
     MessageScrollerProvider,
     MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
+import { buildMockBpmn } from "@/lib/bpmn/mock";
 
 type ChatMessage = {
     id: string;
@@ -25,32 +26,46 @@ type ChatMessage = {
     text: string;
 };
 
-export function Chat() {
+export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [draft, setDraft] = React.useState("");
+    const [isLoading, setIsLoading] = React.useState(false);
     const formRef = React.useRef<HTMLFormElement>(null);
 
     function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
 
         const text = draft.trim();
-        if (!text) return;
+        if (!text || isLoading) return;
 
         setMessages((prev) => [
             ...prev,
             { id: crypto.randomUUID(), role: "user", text },
-            {
-                id: crypto.randomUUID(),
-                role: "assistant",
-                text: "Todavía no estoy conectado al servidor.",
-            },
         ]);
         setDraft("");
+        setIsLoading(true);
+
+        const xml = buildMockBpmn(text);
+
+        // Mock de la respuesta del chatbot: cuando exista el backend,
+        // reemplazar por un fetch que devuelva { text, bpmnXml }.
+        window.setTimeout(() => {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    text: `Listo, generé el proceso para "${text}". Podés editarlo en el panel de la derecha.`,
+                },
+            ]);
+            onDiagram?.(xml);
+            setIsLoading(false);
+        }, 900);
     }
 
     return (
         <MessageScrollerProvider autoScroll>
-            <div className="flex h-dvh w-full min-h-0 flex-col overflow-hidden">
+            <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
                 <div className="min-h-0 flex-1">
                     {messages.length === 0 ? (
                         <div className="flex h-full items-center justify-center p-8 text-center text-muted-foreground">
@@ -98,6 +113,25 @@ export function Chat() {
                                             </Message>
                                         </MessageScrollerItem>
                                     ))}
+                                    {isLoading && (
+                                        <MessageScrollerItem
+                                            messageId="loading"
+                                            scrollAnchor
+                                        >
+                                            <Message align="start">
+                                                <MessageContent>
+                                                    <Bubble
+                                                        align="start"
+                                                        variant="secondary"
+                                                    >
+                                                        <BubbleContent className="text-muted-foreground">
+                                                            Generando diagrama...
+                                                        </BubbleContent>
+                                                    </Bubble>
+                                                </MessageContent>
+                                            </Message>
+                                        </MessageScrollerItem>
+                                    )}
                                 </MessageScrollerContent>
                             </MessageScrollerViewport>
                             <MessageScrollerButton />
@@ -130,7 +164,7 @@ export function Chat() {
                                     type="submit"
                                     size="icon-sm"
                                     className="ml-auto"
-                                    disabled={!draft.trim()}
+                                    disabled={!draft.trim() || isLoading}
                                 >
                                     <ArrowUpIcon />
                                     <span className="sr-only">Enviar</span>

@@ -1,11 +1,12 @@
-import { Chat } from "@/components/chat/chat";
+import { AppSidebar } from "@/components/chat/sidebar";
 import {
     SidebarInset,
     SidebarProvider,
     SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/chat/sidebar";
-export default function Home({ children }: { children: React.ReactNode }) {
+import { Workspace } from "@/components/workspace";
+
+export default function Home() {
     return (
         <SidebarProvider className="h-dvh overflow-hidden">
             <AppSidebar />
@@ -16,7 +17,7 @@ export default function Home({ children }: { children: React.ReactNode }) {
                 </header>
 
                 <div className="min-h-0 flex-1">
-                    <Chat />
+                    <Workspace />
                 </div>
             </SidebarInset>
         </SidebarProvider>
