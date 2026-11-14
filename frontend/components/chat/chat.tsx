@@ -1,7 +1,12 @@
 "use client";
 import * as React from "react";
-import { ArrowUpIcon } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ArrowUpIcon, PencilIcon, WorkflowIcon } from "lucide-react";
 
+import {
+    BpmnEditorDialog,
+    type EditorDiagram,
+} from "@/components/bpmn/bpmn-editor-dialog";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import {
     InputGroup,
@@ -15,21 +20,39 @@ import {
     MessageScrollerButton,
     MessageScrollerContent,
     MessageScrollerItem,
-    MessageScrollerProvider,
     MessageScrollerViewport,
+    MessageScrollerProvider,
 } from "@/components/ui/message-scroller";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildMockBpmn } from "@/lib/bpmn/mock";
+
+const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
+    ssr: false,
+    loading: () => <Skeleton className="h-full w-full" />,
+});
+
+type ChatMessageBpmn = {
+    id: string;
+    name: string;
+    xml: string;
+};
 
 type ChatMessage = {
     id: string;
     role: "user" | "assistant";
     text: string;
+    bpmn?: ChatMessageBpmn;
 };
 
-export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
+export function Chat() {
     const [messages, setMessages] = React.useState<ChatMessage[]>([]);
     const [draft, setDraft] = React.useState("");
     const [isLoading, setIsLoading] = React.useState(false);
+    const [editorOpen, setEditorOpen] = React.useState(false);
+    const [active, setActive] = React.useState<{
+        messageId: string;
+        diagram: EditorDiagram;
+    } | null>(null);
     const formRef = React.useRef<HTMLFormElement>(null);
 
     function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -55,12 +78,41 @@ export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
                 {
                     id: crypto.randomUUID(),
                     role: "assistant",
-                    text: `Listo, generé el proceso para "${text}". Podés editarlo en el panel de la derecha.`,
+                    text: `Listo, generé el proceso para "${text}". Tocá el diagrama para editarlo.`,
+                    bpmn: { id: crypto.randomUUID(), name: text, xml },
                 },
             ]);
-            onDiagram?.(xml);
             setIsLoading(false);
         }, 900);
+    }
+
+    function openEditor(message: ChatMessage) {
+        if (!message.bpmn) return;
+
+        setActive({
+            messageId: message.id,
+            diagram: {
+                id: message.bpmn.id,
+                name: message.bpmn.name,
+                xml: message.bpmn.xml,
+            },
+        });
+        setEditorOpen(true);
+    }
+
+    // Sync en vivo: cada edición del modeler actualiza el xml del mensaje,
+    // así el preview del chat refleja siempre la versión actual.
+    function updateActiveDiagramXml(xml: string) {
+        if (!active) return;
+
+        const messageId = active.messageId;
+        setMessages((prev) =>
+            prev.map((message) =>
+                message.id === messageId && message.bpmn
+                    ? { ...message, bpmn: { ...message.bpmn, xml } }
+                    : message,
+            ),
+        );
     }
 
     return (
@@ -109,6 +161,19 @@ export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
                                                             {message.text}
                                                         </BubbleContent>
                                                     </Bubble>
+                                                    {message.bpmn && (
+                                                        <DiagramPreview
+                                                            xml={
+                                                                message.bpmn
+                                                                    .xml
+                                                            }
+                                                            onOpen={() =>
+                                                                openEditor(
+                                                                    message,
+                                                                )
+                                                            }
+                                                        />
+                                                    )}
                                                 </MessageContent>
                                             </Message>
                                         </MessageScrollerItem>
@@ -128,6 +193,7 @@ export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
                                                             Generando diagrama...
                                                         </BubbleContent>
                                                     </Bubble>
+                                                    <Skeleton className="h-52 w-80 max-w-full rounded-xl" />
                                                 </MessageContent>
                                             </Message>
                                         </MessageScrollerItem>
@@ -174,6 +240,43 @@ export function Chat({ onDiagram }: { onDiagram?: (xml: string) => void }) {
                     </form>
                 </div>
             </div>
+
+            <BpmnEditorDialog
+                key={active?.diagram.id ?? "none"}
+                open={editorOpen}
+                onOpenChange={setEditorOpen}
+                diagram={active?.diagram ?? null}
+                onXmlChange={updateActiveDiagramXml}
+            />
         </MessageScrollerProvider>
+    );
+}
+
+function DiagramPreview({
+    xml,
+    onOpen,
+}: {
+    xml: string;
+    onOpen: () => void;
+}) {
+    return (
+        <div className="group/preview w-80 max-w-full overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-ring/60">
+            <button
+                type="button"
+                onClick={onOpen}
+                aria-label="Abrir el editor del diagrama"
+                className="relative block h-52 w-full cursor-pointer outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+                <BpmnViewer xml={xml} className="h-full w-full" />
+            </button>
+            <div className="flex items-center gap-1.5 border-t px-3 py-1.5 text-xs text-muted-foreground">
+                <WorkflowIcon className="size-3.5 shrink-0" />
+                <span className="truncate">Diagrama BPMN</span>
+                <span className="ml-auto flex items-center gap-1 transition-colors group-hover/preview:text-foreground">
+                    <PencilIcon className="size-3" />
+                    Editar
+                </span>
+            </div>
+        </div>
     );
 }
