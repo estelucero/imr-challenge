@@ -34,7 +34,7 @@ const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
 
 type ChatProps = {
     messages: ChatMessage[];
-    onUserMessage: (text: string) => void;
+    onUserMessage: (text: ChatMessage) => void;
     onAssistantMessage: (message: ChatMessage) => void;
     onUpdateBpmnXml: (messageId: string, xml: string) => void;
 };
@@ -60,7 +60,7 @@ export function Chat({
         const text = draft.trim();
         if (!text || isLoading) return;
 
-        onUserMessage(text);
+        onUserMessage({ id: crypto.randomUUID(), role: "user", text });
         setDraft("");
         setIsLoading(true);
 

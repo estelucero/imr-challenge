@@ -54,21 +54,39 @@ export function useChatSessions() {
         return () => window.clearTimeout(timer);
     }, []);
 
+    // Estado siempre fresco para los callbacks: el setTimeout del mock del
+    // chat se dispara mucho después del render que lo creó, y leer el
+    // estado del closure le daba valores viejos (creaba una segunda sesión
+    // y pisaba el storage, "borrando" el mensaje del usuario).
+    const stateRef = React.useRef({ sessions, activeId });
+
+    React.useEffect(() => {
+        stateRef.current = { sessions, activeId };
+    });
+
     const activeSession = sessions.find((s) => s.id === activeId) ?? null;
 
     /** Limpia la vista; la sesión nueva se crea con el primer mensaje. */
     function newChat() {
+        stateRef.current = { ...stateRef.current, activeId: null };
         setActiveId(null);
         writeActiveSessionId(null);
     }
 
     function selectSession(id: string) {
+        stateRef.current = { ...stateRef.current, activeId: id };
         setActiveId(id);
         writeActiveSessionId(id);
     }
 
     function deleteSession(id: string) {
+        const { sessions, activeId } = stateRef.current;
+
         const rest = sessions.filter((session) => session.id !== id);
+        stateRef.current = {
+            sessions: rest,
+            activeId: id === activeId ? null : activeId,
+        };
         setSessions(rest);
         writeSessions(rest);
 
@@ -79,6 +97,8 @@ export function useChatSessions() {
     }
 
     function addMessage(message: ChatMessage) {
+        const { sessions, activeId } = stateRef.current;
+
         if (!activeId) {
             // Primer mensaje de un chat nuevo: se crea la sesión al vuelo.
             const session: ChatSession = {
@@ -86,13 +106,14 @@ export function useChatSessions() {
                 title:
                     message.role === "user"
                         ? truncate(message.text)
-                        : `${getDate()}`,
+                        : getDate(),
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 messages: [message],
             };
 
             const next = [session, ...sessions];
+            stateRef.current = { sessions: next, activeId: session.id };
             setSessions(next);
             setActiveId(session.id);
             writeActiveSessionId(session.id);
@@ -115,11 +136,13 @@ export function useChatSessions() {
                   }
                 : session,
         );
+        stateRef.current = { sessions: next, activeId };
         setSessions(next);
         writeSessions(next);
     }
 
     function updateMessageBpmn(messageId: string, xml: string) {
+        const { sessions, activeId } = stateRef.current;
         if (!activeId) return;
 
         const next = sessions.map((session) =>
@@ -137,6 +160,7 @@ export function useChatSessions() {
                   }
                 : session,
         );
+        stateRef.current = { sessions: next, activeId };
         setSessions(next);
         writeSessions(next);
     }
