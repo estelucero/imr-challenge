@@ -15,6 +15,22 @@ function truncate(text: string, max = 40) {
     return text.length > max ? `${text.slice(0, max).trimEnd()}…` : text;
 }
 
+function getDate(): string {
+    const ahora: Date = new Date();
+
+    // Formato para Argentina/Latinoamérica (DD/MM/YYYY, HH:mm:ss)
+    const fechaFormateada: string = ahora.toLocaleString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    });
+    return fechaFormateada;
+}
+
 export function useChatSessions() {
     const [sessions, setSessions] = React.useState<ChatSession[]>([]);
     const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -70,7 +86,7 @@ export function useChatSessions() {
                 title:
                     message.role === "user"
                         ? truncate(message.text)
-                        : "Nuevo chat",
+                        : `${getDate()}`,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
                 messages: [message],
