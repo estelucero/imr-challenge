@@ -50,7 +50,7 @@ export function Chat() {
 
     return (
         <MessageScrollerProvider autoScroll>
-            <div className="flex h-full min-h-0 flex-col">
+            <div className="flex h-dvh w-full min-h-0 flex-col overflow-hidden">
                 <div className="min-h-0 flex-1">
                     {messages.length === 0 ? (
                         <div className="flex h-full items-center justify-center p-8 text-center text-muted-foreground">
