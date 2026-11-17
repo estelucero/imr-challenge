@@ -3,6 +3,7 @@ from typing import Literal
 
 class ChatRequest(BaseModel):
     session_id: str
+    model: str | None = None
     message: str
 
 class ChatResponse(BaseModel):

@@ -1,6 +1,6 @@
 
 from pathlib import Path
-
+from functools import lru_cache
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.memory import InMemorySaver
@@ -12,26 +12,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 PROMPT_PATH = BASE_DIR / "prompts" / "bpmn_system_prompt.md"
 
-
-def load_system_prompt() -> str:
-    """Load BPMN agent instructions from Markdown."""
-    return PROMPT_PATH.read_text(encoding="utf-8")
-
-
-model = init_chat_model(
-    "openrouter:deepseek/deepseek-v4-flash",
-    temperature=0,
-    timeout=300_000,
-    max_tokens=25000,
-    max_retries=1
-)
+DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 
 checkpointer = InMemorySaver()
 
-bpmn_creator = create_agent(
-    model=model,
-    tools=[],
-    system_prompt=load_system_prompt(),
-    checkpointer=checkpointer,
-    response_format=ToolStrategy(ChatResponse)
-)
+def load_system_prompt() -> str:
+    """Lee el sys_prompt de la carpeta prompts"""
+    return PROMPT_PATH.read_text(encoding="utf-8")
+
+@lru_cache(maxsize=16)
+def get_bpmn_creator(model_name: str = DEFAULT_MODEL):
+    """Crea un cachea un modelo para diferentes instancias con un cache
+    de 16 modelos.
+    Las sesiones son independientes pero el checkpointer es singleton.
+    """
+    model = init_chat_model(
+        f"openrouter:{model_name}",
+        temperature=0,
+        timeout=300_000,
+        max_tokens=25000,
+        max_retries=1,
+    )
+    return create_agent(
+        model=model,
+        tools=[],
+        system_prompt=PROMPT_PATH.read_text(encoding="utf-8"),
+        checkpointer=checkpointer,
+        response_format=ToolStrategy(ChatResponse),
+    )
