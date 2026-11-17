@@ -1,6 +1,6 @@
 services:
   
-  nextjs-standalone:
+  frontend:
     build:
       context: ./frontend
       dockerfile: ./Dockerfile
@@ -11,4 +11,18 @@ services:
       PORT: "3000"
     ports:
       - "3000:3000"
+  
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile
+    image: backend
+    container_name: backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend/app:/code/app
+    ports:
+      - "8000:8000"
+  
     

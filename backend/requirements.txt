@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-openrouter
+langserve[all]
+python-dotenv
