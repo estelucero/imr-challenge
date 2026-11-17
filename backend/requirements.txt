@@ -6,3 +6,4 @@ langserve[all]
 python-dotenv
 deepagents
 pydantic
+langchain-openai

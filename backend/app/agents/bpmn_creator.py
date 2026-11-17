@@ -13,6 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PROMPT_PATH = BASE_DIR / "prompts" / "bpmn_system_prompt.md"
 
 DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_PROVIDER = "openrouter"
 
 checkpointer = InMemorySaver()
 
@@ -20,16 +21,16 @@ def load_system_prompt() -> str:
     """Lee el sys_prompt de la carpeta prompts"""
     return PROMPT_PATH.read_text(encoding="utf-8")
 
-@lru_cache(maxsize=16)
-def get_bpmn_creator(model_name: str = DEFAULT_MODEL):
+@lru_cache(maxsize=32)
+def get_bpmn_creator(model_name: str = DEFAULT_MODEL, provider: str = DEFAULT_PROVIDER):
     """Crea un cachea un modelo para diferentes instancias con un cache
     de 16 modelos.
     Las sesiones son independientes pero el checkpointer es singleton.
     """
     model = init_chat_model(
-        f"openrouter:{model_name}",
+        f"{provider}:{model_name}",
         temperature=0,
-        timeout=300_000,
+        timeout = 300_000 if provider == "openrouter" else 300,
         max_tokens=25000,
         max_retries=1,
     )

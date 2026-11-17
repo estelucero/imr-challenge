@@ -13,7 +13,7 @@ def health():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest) -> ChatResponse:
-    creator = get_bpmn_creator(req.model)   
+    creator = get_bpmn_creator(req.model,req.provider)   
     result = await creator.ainvoke(
         {"messages": [("user", req.message)]},
         config={"configurable": {"thread_id": req.session_id}},

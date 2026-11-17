@@ -4,8 +4,9 @@ from typing import Literal
 class ChatRequest(BaseModel):
     session_id: str
     model: str | None = None
+    provider: Literal["openrouter", "openai"] = "openrouter"
     message: str
-
+    
 class ChatResponse(BaseModel):
     status: Literal["needs_clarification", "completed", "error"] = Field(description="The status of the message")
     message: str = Field(description="The response of the model")
