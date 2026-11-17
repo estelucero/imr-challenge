@@ -5,3 +5,4 @@ langchain-openrouter
 langserve[all]
 python-dotenv
 deepagents
+pydantic

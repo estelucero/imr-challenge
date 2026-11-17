@@ -5,10 +5,8 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.memory import InMemorySaver
 
-
-# --------------------------------------------------
-# Paths
-# --------------------------------------------------
+from langchain.agents.structured_output import ToolStrategy 
+from app.models.chat_request import ChatResponse
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,10 +18,6 @@ def load_system_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
-# --------------------------------------------------
-# Model
-# --------------------------------------------------
-
 model = init_chat_model(
     "openrouter:deepseek/deepseek-v4-flash",
     temperature=0,
@@ -32,21 +26,12 @@ model = init_chat_model(
     max_retries=1
 )
 
-
-# --------------------------------------------------
-# Short-term Memory
-# --------------------------------------------------
-
 checkpointer = InMemorySaver()
-
-
-# --------------------------------------------------
-# Agent
-# --------------------------------------------------
 
 bpmn_creator = create_agent(
     model=model,
     tools=[],
     system_prompt=load_system_prompt(),
     checkpointer=checkpointer,
+    response_format=ToolStrategy(ChatResponse)
 )
