@@ -20,10 +20,10 @@ const OPENAI_MODELS: ChatModel[] = [
 ];
 
 export const DEFAULT_MODEL: ChatModel = {
-    id: "deepseek/deepseek-v4-flash",
+    id: "openai/gpt-6-luna",
     provider: "openrouter",
-    name: "DeepSeek V4 Flash",
-    vendor: "DeepSeek",
+    name: "GPT-6 Luna",
+    vendor: "OpenAI",
 };
 
 // Etiquetas legibles para el vendor de cada slug de OpenRouter.

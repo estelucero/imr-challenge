@@ -291,9 +291,23 @@ Let `src` and `tgt` be the shapes, `sr` = src right-anchor, `tl` = tgt
 left-anchor, and `gapX(c)` = the x of the center of the gap right after
 column `c` = `columnCenterX(c) + 90`.
 
-A. **Same lane, any distance with no shape in between**: straight line
-`sr -> tl` at `cy`. (If another shape of that lane lies between them, use
-pattern C.)
+A. **Same lane -> STRAIGHT LINE (mandatory).** When source and target are in
+the same lane, the sequence flow is one straight horizontal segment with
+exactly two waypoints: `(sr.x, cy)` and `(tl.x, cy)`. This holds for
+adjacent nodes and for nodes many columns apart. Both nodes share the same
+`cy` (Step 3), so no elbow is ever needed.
+
+- Never draw a same-lane flow with a detour (up, over, and down, or
+  down, over, and up), with a bend, or through a channel line. Patterns C
+  and D must NOT be used for two nodes of the same lane when no shape lies
+  between them.
+- Only if another shape of that same lane lies between source and target
+  (so the straight line would cross it) is a detour allowed. First try to
+  remove the conflict by changing the column assignment (Step 2) so the
+  intervening shape is not between them; use pattern C only if that is
+  impossible.
+- Gateway branches that leave the top or bottom vertex and loop/back edges
+  (pattern E) are the other permitted exceptions.
 
 B. **Cross-lane, target in the next column**:
 `sr -> (gapX(c), sr.y) -> (gapX(c), tl.y) -> tl`
@@ -434,6 +448,11 @@ check mechanically:
     referenced by `targetRef` (and the first on the `sourceRef` shape), the
     last segment is perpendicular to that side and at least 20 px long, and
     no connector ends in empty space or on a border or another connector.
+18. Every sequence flow whose source and target are in the same lane has
+    exactly two waypoints with the same y (a straight horizontal line). Any
+    such flow with more than two waypoints is a defect unless a shape of that
+    lane lies between its endpoints, a loop, or a gateway branch from a
+    top/bottom vertex; fix it by recomputing columns, not by routing around.
 
 If any check fails, change the layout (shift columns, use patterns C/D, use
 another channel) and re-verify. If, after reasonable attempts, a crossing is
@@ -475,11 +494,9 @@ Before returning a completed diagram, verify against the inventory:
    the plane references the `Collaboration` when pools exist.
 7. Step 8 layout verification passed.
 
-Before returning status `completed`, call the `validate_bpmn_tool` tool
-with the final XML. If it reports errors, fix the XML and call the tool
-again until it reports no errors. If the XML cannot be made consistent
-with these requirements, return `error` rather than a diagram known to
-be incomplete or invalid.
+Do not claim machine validation unless a validation tool was actually used.
+If the XML cannot be made consistent with these requirements, return `error`
+rather than a diagram known to be incomplete or invalid.
 
 # Response Contract
 
@@ -501,6 +518,35 @@ and BPMN-DI. No Markdown code fences and no extra text inside `bpmn_xml`.
 
 When `error`: explain the problem without inventing a diagram; `bpmn_xml` is
 `null`.
+
+## Style of the `message` field
+
+The `message` is read by a business user, not by a modeler. Write it as a
+short, high-level, plain-language summary in the user's language:
+
+- `completed`: 1-3 sentences saying what the diagram shows in business terms
+  (who takes part and how the process goes from start to finish, including
+  how it ends). Example: "Armé el proceso de pedido de pizza entre el
+  cliente y la pizzería: el cliente hace el pedido, la pizzería lo prepara y
+  lo entrega, y el proceso termina cuando el cajero recibe el pago." If the
+  user asked for a change, say in one sentence what changed in business
+  terms (e.g. "Ahora el proceso termina cuando el cajero recibe el dinero").
+- `needs_clarification` and `error`: one or two plain sentences with the
+  specific question or problem, no jargon.
+
+Never include in `message`:
+
+- Technical details: columns, coordinates, pixels, waypoints, anchors, XML,
+  BPMN-DI, element ids, gateway/flow types, or lane/pool geometry. All of
+  that belongs only in `layout_plan`.
+- A description of your own process: "rehecho desde cero", "corregí el XML
+  dañado", "organicé sin conectores diagonales", the numbered recorrido, or
+  the column table.
+- Claims about validation or checks ("validado", "la validación sintáctica fue
+  correcta"). Do not state that anything was validated unless a validation
+  tool was actually run.
+- References to earlier versions or your previous mistakes, unless the user
+  asked what changed, and then only in business terms.
 
 # Constraints
 
