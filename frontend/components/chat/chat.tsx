@@ -15,6 +15,7 @@ import {
     InputGroupButton,
     InputGroupTextarea,
 } from "@/components/ui/input-group";
+import { Markdown } from "@/components/ui/markdown";
 import { Message, MessageContent } from "@/components/ui/message";
 import {
     MessageScroller,
@@ -24,8 +25,17 @@ import {
     MessageScrollerViewport,
     MessageScrollerProvider,
 } from "@/components/ui/message-scroller";
+import { ModelSelector } from "@/components/chat/model-selector";
+import { Loader } from "@/components/ui/loader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { sendChat } from "@/lib/chat/api";
+import {
+    DEFAULT_MODEL,
+    getModels,
+    readSelectedModel,
+    writeSelectedModel,
+    type ChatModel,
+} from "@/lib/chat/models";
 
 const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
     ssr: false,
@@ -52,16 +62,38 @@ export function Chat({
         messageId: string;
         diagram: EditorDiagram;
     } | null>(null);
+    const [models, setModels] = React.useState<ChatModel[]>([]);
+    const [selectedModel, setSelectedModel] = React.useState<ChatModel>(DEFAULT_MODEL);
     const formRef = React.useRef<HTMLFormElement>(null);
+
+    React.useEffect(() => {
+        let cancelled = false;
+
+        getModels().then((available) => {
+            if (cancelled) return;
+            setModels(available);
+            setSelectedModel(readSelectedModel(available));
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    function selectModel(model: ChatModel) {
+        setSelectedModel(model);
+        writeSelectedModel(model);
+    }
 
     const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const text = draft.trim();
         if (!text || isLoading) return;
         const sessionId = onUserMessage({ id: crypto.randomUUID(), role: "user", text });
+        setDraft("");
         setIsLoading(true);
         try {
-            const res = await sendChat(sessionId, text);
+            const res = await sendChat(sessionId, text, selectedModel);
             onAssistantMessage({
                 id: crypto.randomUUID(), role: "assistant",
                 text: res.message,
@@ -140,7 +172,7 @@ export function Chat({
                                                         }
                                                     >
                                                         <BubbleContent>
-                                                            {message.text}
+                                                            <BubbleText message={message} />
                                                         </BubbleContent>
                                                     </Bubble>
                                                     {message.bpmn && (
@@ -171,11 +203,9 @@ export function Chat({
                                                         variant="secondary"
                                                     >
                                                         <BubbleContent className="text-muted-foreground">
-                                                            Generando
-                                                            diagrama...
+                                                            <Loader />
                                                         </BubbleContent>
                                                     </Bubble>
-                                                    <Skeleton className="h-52 w-80 max-w-full rounded-xl" />
                                                 </MessageContent>
                                             </Message>
                                         </MessageScrollerItem>
@@ -208,6 +238,11 @@ export function Chat({
                                 }}
                             />
                             <InputGroupAddon align="block-end">
+                                <ModelSelector
+                                    models={models}
+                                    value={selectedModel}
+                                    onChange={selectModel}
+                                />
                                 <InputGroupButton
                                     type="submit"
                                     size="icon-sm"
@@ -232,6 +267,14 @@ export function Chat({
             />
         </MessageScrollerProvider>
     );
+}
+
+function BubbleText({ message }: { message: ChatMessage }) {
+    if (message.role === "assistant") {
+        return <Markdown>{message.text}</Markdown>;
+    }
+
+    return <>{message.text}</>;
 }
 
 function DiagramPreview({ xml, onOpen }: { xml: string; onOpen: () => void }) {

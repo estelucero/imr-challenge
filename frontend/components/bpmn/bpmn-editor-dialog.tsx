@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { saveDiagram, type SavedDiagram } from "@/lib/bpmn/storage";
+import { getDate } from "@/lib/date";
 
 const BpmnModeler = dynamic(() => import("@/components/bpmn/bpmn-modeler"), {
     ssr: false,
@@ -63,6 +64,16 @@ export function BpmnEditorDialog({
     const [editedXml, setEditedXml] = React.useState<string | null>(null);
     const [name, setName] = React.useState(diagram?.name ?? "");
     const [justSaved, setJustSaved] = React.useState(false);
+
+    // Cada vez que se abre el modal, el nombre arranca con la fecha y hora.
+    // Ajuste de estado durante el render (patrón de React para props cambiantes).
+    const [prevOpen, setPrevOpen] = React.useState(open);
+    if (open !== prevOpen) {
+        setPrevOpen(open);
+        if (open) {
+            setName(getDate());
+        }
+    }
 
     const savedTimerRef = React.useRef<number | undefined>(undefined);
     const onXmlChangeRef = React.useRef(onXmlChange);

@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto, Roboto_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import "bpmn-js/dist/assets/diagram-js.css";
 import "bpmn-js/dist/assets/bpmn-js.css";
 import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
+const robotoSans = Roboto({
+    variable: "--font-sans",
     subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
+const robotoMono = Roboto_Mono({
+    variable: "--font-mono",
     subsets: ["latin"],
 });
 
@@ -26,9 +27,19 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     return (
         <html
             lang="es"
-            className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+            suppressHydrationWarning
+            className={`${robotoSans.variable} ${robotoMono.variable} h-full antialiased`}
         >
-            <body className="min-h-full flex flex-col">{children}</body>
+            <body className="min-h-full flex flex-col">
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    {children}
+                </ThemeProvider>
+            </body>
         </html>
     );
 }

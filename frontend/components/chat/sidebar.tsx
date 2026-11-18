@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
-import { MessageSquareIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { MoonIcon, MessageSquareIcon, PlusIcon, SunIcon, TrashIcon } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,28 @@ import {
     SidebarMenuItem,
     useSidebar,
 } from "@/components/ui/sidebar";
+import { Switch } from "@/components/ui/switch";
 import type { ChatSession } from "@/lib/chat/sessions";
+
+function ThemeToggle() {
+    const { resolvedTheme, setTheme } = useTheme();
+    const isDark = resolvedTheme === "dark";
+
+    return (
+        <label className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex items-center gap-2">
+                {isDark ? <MoonIcon /> : <SunIcon />}
+                Tema oscuro
+            </span>
+            <Switch
+                checked={isDark}
+                onCheckedChange={(checked) =>
+                    setTheme(checked ? "dark" : "light")
+                }
+            />
+        </label>
+    );
+}
 
 type AppSidebarProps = {
     sessions: ChatSession[];
@@ -130,7 +152,9 @@ export function AppSidebar({
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter />
+            <SidebarFooter className="p-2">
+                <ThemeToggle />
+            </SidebarFooter>
         </Sidebar>
     );
 }
