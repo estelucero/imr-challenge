@@ -7,6 +7,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from langchain.agents.structured_output import ToolStrategy 
 from app.models.chat_request import ChatResponse
+from app.tools.validate_bpmn import validate_bpmn_tool
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -36,7 +37,7 @@ def get_bpmn_creator(model_name: str = DEFAULT_MODEL, provider: str = DEFAULT_PR
     )
     return create_agent(
         model=model,
-        tools=[],
+        tools=[validate_bpmn_tool],
         system_prompt=PROMPT_PATH.read_text(encoding="utf-8"),
         checkpointer=checkpointer,
         response_format=ToolStrategy(ChatResponse),
