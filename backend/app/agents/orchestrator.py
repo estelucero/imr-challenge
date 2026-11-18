@@ -99,10 +99,7 @@ def build_orchestrator(model_name: str = DEFAULT_MODEL, provider: str = "openrou
             analyst_payload = _as_dict(structured)
             try:
                 analyst_graph = AnalystProcessGraph.model_validate(analyst_payload)
-                logger.info(
-                        "analyst_graph=%s",
-                        analyst_graph.model_dump_json(indent=2),
-                    )
+                
             except (ValidationError, ValueError) as validation_error:
                 logger.warning(
                     "analyze: graph validation failed; asking analyst to repair once | error=%s",
@@ -130,10 +127,7 @@ def build_orchestrator(model_name: str = DEFAULT_MODEL, provider: str = "openrou
                 analyst_graph = AnalystProcessGraph.model_validate(
                     _as_dict(repair_structured)
                 )
-                logger.debug(
-                        "analyst_graph=%s",
-                        analyst_graph.model_dump_json(indent=2),
-                    )
+                
                 logger.info("analyze: graph repair passed validation")
 
             process_spec = analyst_graph.model_dump()
@@ -349,7 +343,10 @@ def build_orchestrator(model_name: str = DEFAULT_MODEL, provider: str = "openrou
         draft = state.get("draft") or {}
         logger.info("respond_completed: xml len=%d", len(draft.get("bpmn_xml") or ""))
         message = draft.get("message", "")
-        if state.get("layout_warnings"):
+        warnings = state.get("layout_warnings") or []
+        if any("no safe Manhattan route" in warning for warning in warnings):
+            message += "\n\nNo pude asegurar una ruta ortogonal sin cruces con nodos para todas las conexiones; revisá el diagrama."
+        elif warnings:
             message += "\n\nEl diagrama puede tener detalles visuales que requieran ajuste."
         return {
             "response": ChatResponse(

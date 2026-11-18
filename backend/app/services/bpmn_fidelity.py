@@ -25,21 +25,36 @@ def validate_graph_fidelity(xml: str, graph: dict) -> list[str]:
     errors = []
     used = set()
 
-    def match(item, tags, label_key):
+    def match(item, tags, label_key, name_matches=None):
         name = item.get(label_key) or ""
+        name_matches = name_matches or (lambda element: element.get("name", "") == name)
         element = by_id.get(item.get("id"))
         if element is None:
             matches = [candidate for candidate in elements if candidate.tag.removeprefix(NS) in tags
-                       and candidate.get("name", "") == name and candidate.get("id") not in used]
+                       and name_matches(candidate) and candidate.get("id") not in used]
             element = matches[0] if len(matches) == 1 else None
-        if element is None or element.tag.removeprefix(NS) not in tags or element.get("name", "") != name:
+        if element is None or element.tag.removeprefix(NS) not in tags or not name_matches(element):
             errors.append(f"Missing or changed {item.get('id')} ({name}).")
             return None
         used.add(element.get("id"))
         return element
 
     pools = {item["id"]: match(item, {"participant"}, "name") for item in graph.get("pools", [])}
-    lanes = {item["id"]: match(item, {"lane"}, "name") for item in graph.get("swimlanes", [])}
+
+    def lane_name_matches(item, lane):
+        name = item.get("name") or ""
+        if lane.get("name", "") == name:
+            return True
+        pool = pools.get(item.get("pool_id"))
+        normalize = lambda value: " ".join((value or "").split()).casefold()
+        if lane.get("name") or pool is None or not normalize(name) or normalize(name) != normalize(pool.get("name")):
+            return False
+        process = by_id.get(pool.get("processRef"))
+        graph_lanes = [candidate for candidate in graph.get("swimlanes", []) if candidate.get("pool_id") == item.get("pool_id")]
+        return process is not None and len(graph_lanes) == 1 and list(process.iter(NS + "lane")) == [lane]
+
+    lanes = {item["id"]: match(item, {"lane"}, "name", lambda element, item=item: lane_name_matches(item, element))
+             for item in graph.get("swimlanes", [])}
     nodes = {item["id"]: match(item, KINDS.get(item.get("kind"), set()), "label")
              for item in graph.get("objects", [])}
 

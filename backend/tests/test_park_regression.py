@@ -1,10 +1,14 @@
 import asyncio
+import xml.etree.ElementTree as ET
 from uuid import uuid4
 
 import app.agents.orchestrator as orchestrator
 from app.models.chat_request import BpmnDraft
 from app.services.bpmn_fidelity import validate_graph_fidelity
 from app.services.bpmn_syntax import validate_bpmn_syntax
+from app.services.bpmn_layout import (
+    BPMNDI_NS, DC_NS, DI_NS, MODEL_NS, NODE_TAGS, _overlap, _segment_problem, check_and_repair_layout,
+)
 from park_fixture import PARK_REQUEST, park_graph, park_xml
 
 
@@ -57,6 +61,32 @@ def test_park_graph_keeps_branches_loop_and_outcomes():
     assert validate_graph_fidelity(xml.replace('name="No hay lugar"', 'name="Sin dato"'), graph)
 
 
+def test_park_layout_has_no_overlaps_or_non_manhattan_edges():
+    xml, errors, warnings = check_and_repair_layout(park_xml())
+    assert not errors and not warnings
+    root = ET.fromstring(xml)
+    semantic = {element.get("id"): element for element in root.iter()
+                if element.tag.startswith(f"{{{MODEL_NS}}}") and element.get("id")}
+    nodes = []
+    for shape in root.iter(f"{{{BPMNDI_NS}}}BPMNShape"):
+        ref = shape.get("bpmnElement")
+        if ref not in semantic or semantic[ref].tag.split("}")[-1] not in NODE_TAGS:
+            continue
+        b = shape.find(f"{{{DC_NS}}}Bounds")
+        x, y, w, h = (float(b.get(attr)) for attr in ("x", "y", "width", "height"))
+        nodes.append((ref, (x, y, x + w, y + h)))
+    for index, (ref, rect) in enumerate(nodes):
+        assert all(not _overlap(rect, other) for _, other in nodes[index + 1:]), ref
+    for edge in root.iter(f"{{{BPMNDI_NS}}}BPMNEdge"):
+        points = [(float(point.get("x")), float(point.get("y")))
+                  for point in edge.findall(f"{{{DI_NS}}}waypoint")]
+        for a, b in zip(points, points[1:]):
+            assert a != b and (a[0] == b[0] or a[1] == b[1]), edge.get("id")
+            assert not _segment_problem(a, b, [rect for _, rect in nodes], []), edge.get("id")
+    assert validate_graph_fidelity(xml, park_graph()) == []
+    assert check_and_repair_layout(xml)[0] == xml
+
+
 def test_no_xml_retries_creator_then_reviews_complete_park(monkeypatch):
     creator = Agent(BpmnDraft(message="No pude ubicar los elementos", failure_reason="layout_unsolvable"),
                     draft(park_xml()))
@@ -96,13 +126,20 @@ def test_rejects_broken_review_and_keeps_valid_draft(monkeypatch):
     assert validate_bpmn_syntax(response.bpmn_xml)["valid"]
 
 
-def test_minor_unresolved_visual_problem_is_warned_but_does_not_block(monkeypatch):
+def test_overlapping_park_activities_are_fixed_before_review(monkeypatch):
     xml = park_xml().replace('x="900" y="260"', 'x="700" y="260"')
     validator = Agent(None)
     response = invoke(setup(monkeypatch, Agent(draft(xml)), validator))
     assert response.status == "completed"
-    assert "detalles visuales" in response.message
-    assert "overlap" in validator.calls[0]["messages"][0].content
+    assert "detalles visuales" not in response.message
+    assert "overlap" not in validator.calls[0]["messages"][0].content
+
+
+def test_unresolved_routes_are_explicitly_reported(monkeypatch):
+    monkeypatch.setattr("app.services.bpmn_layout._route_between", lambda *args, **kwargs: None)
+    response = invoke(setup(monkeypatch, Agent(draft(park_xml())), Agent(None)))
+    assert response.status == "completed"
+    assert "ruta ortogonal sin cruces con nodos" in response.message
 
 
 def test_failure_limits_and_turn_state_reset(monkeypatch):
