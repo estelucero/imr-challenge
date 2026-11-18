@@ -12,9 +12,10 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, ValidationError
 
-from app.agents.bpmn_creator import DEFAULT_MODEL, get_bpmn_creator
+from app.agents.bpmn_creator import get_bpmn_creator
 from app.agents.bpmn_validator import get_bpmn_validator
 from app.agents.clarifier import get_clarifier
+from app.agents.model_config import DEFAULT_PROVIDER, resolve_model
 from app.agents.process_analyst import get_process_analyst
 from app.models.chat_request import ChatResponse
 from app.models.process import AnalystProcessGraph, ClarifierResult
@@ -73,12 +74,13 @@ def _timed_node(name: str, node):
     return run
 
 
-def build_orchestrator(model_name: str = DEFAULT_MODEL, provider: str = "openrouter"):
+def build_orchestrator(model_name: str | None = None, provider: str = DEFAULT_PROVIDER):
     """Build the graph with the clarifier, analyst, creator and validator."""
+    model_name = resolve_model(model_name, provider)
     creator = get_bpmn_creator(model_name, provider)
     validator = get_bpmn_validator(model_name, provider)
-    analyst = get_process_analyst(provider)
-    clarifier = get_clarifier(provider)
+    analyst = get_process_analyst(model_name, provider)
+    clarifier = get_clarifier(model_name, provider)
     async def analyze(state: OrchestratorState) -> dict:
         """Build a connected process graph from the Clarifier's textual summary."""
         summary = (state.get("clarification") or {}).get("message", "")
@@ -465,6 +467,6 @@ def build_orchestrator(model_name: str = DEFAULT_MODEL, provider: str = "openrou
 
 
 @lru_cache(maxsize=16)
-def get_orchestrator(model_name: str | None = None, provider: str = "openrouter"):
-    """Return a graph cached by the selected creator model and provider."""
-    return build_orchestrator(model_name or DEFAULT_MODEL, provider)
+def get_orchestrator(model_name: str | None = None, provider: str = DEFAULT_PROVIDER):
+    """Return a graph cached by the selected model and provider."""
+    return build_orchestrator(resolve_model(model_name, provider), provider)

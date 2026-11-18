@@ -13,21 +13,19 @@ from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
 
 from langchain.agents.structured_output import ToolStrategy
+from app.agents.model_config import DEFAULT_PROVIDER, resolve_model
 from app.models.chat_request import BpmnDraft
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 PROMPT_PATH = BASE_DIR / "prompts" / "bpmn_creator_flexible_prompt.md"
 
-DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
-DEFAULT_PROVIDER = "openrouter"
-
 def load_system_prompt() -> str:
     """Lee el sys_prompt de la carpeta prompts"""
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 @lru_cache(maxsize=32)
-def get_bpmn_creator(model_name: str = DEFAULT_MODEL, provider: str = DEFAULT_PROVIDER):
+def get_bpmn_creator(model_name: str | None = None, provider: str = DEFAULT_PROVIDER):
     """Crea y cachea el agente creador por (modelo, provider).
 
     Sin checkpointer propio ni herramientas internas: recibe el grafo del
@@ -35,7 +33,7 @@ def get_bpmn_creator(model_name: str = DEFAULT_MODEL, provider: str = DEFAULT_PR
     la reparación por un agente separado.
     """
     model = init_chat_model(
-        f"{provider}:{model_name or DEFAULT_MODEL}",
+        f"{provider}:{resolve_model(model_name, provider)}",
         temperature=0,
         timeout=300_000 if provider == "openrouter" else 300,
         max_tokens=25000,

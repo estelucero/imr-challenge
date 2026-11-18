@@ -3,7 +3,7 @@
 NO es un test unitario de pytest: hace llamadas LLM de verdad (necesita la API
 key y consume tokens). Se corre a mano dentro del contenedor:
 
-    docker compose exec backend python tests/check_clarifier.py [provider]
+    docker compose exec backend python tests/check_clarifier.py [provider] [model]
 
 provider: openrouter (default) | openai
 """
@@ -17,9 +17,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from app.agents.clarifier import clarifier_model_name, get_clarifier, load_clarifier_prompt
+from app.agents.clarifier import get_clarifier, load_clarifier_prompt
+from app.agents.model_config import resolve_model
 
 PROVIDER = sys.argv[1] if len(sys.argv) > 1 else "openrouter"
+MODEL = resolve_model(sys.argv[2] if len(sys.argv) > 2 else None, PROVIDER)
 CASE_LIMIT_S = 240  # techo por caso (el ReadTimeout del SDK es ~200s)
 
 
@@ -196,8 +198,8 @@ async def run_case(case: dict, clarifier) -> bool:
 
 
 async def main() -> int:
-    clarifier = get_clarifier(PROVIDER)
-    print(f"Aclarador: provider={PROVIDER} modelo={clarifier_model_name(PROVIDER)}")
+    clarifier = get_clarifier(MODEL, PROVIDER)
+    print(f"Aclarador: provider={PROVIDER} modelo={MODEL}")
 
     results = [await run_case(case, clarifier) for case in CASES]
     passed = sum(results)

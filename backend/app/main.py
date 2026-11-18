@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.models.chat_request import ChatRequest, ChatResponse
 
 from app.agents.orchestrator import get_orchestrator
+from app.agents.model_config import resolve_model
 
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s: %(message)s")
@@ -35,8 +36,9 @@ def health():
 async def chat(req: ChatRequest) -> ChatResponse:
     started = perf_counter()
     response_status = "exception"
+    model_name = resolve_model(req.model, req.provider)
     try:
-        graph = get_orchestrator(req.model, req.provider)
+        graph = get_orchestrator(model_name, req.provider)
         result = await graph.ainvoke(
             {
                 "messages": [("user", req.message)],
@@ -67,7 +69,7 @@ async def chat(req: ChatRequest) -> ChatResponse:
             "chat_timing request_id=%s provider=%s model=%s status=%s elapsed_ms=%.1f",
             req.session_id,
             req.provider,
-            req.model or "default",
+            model_name,
             response_status,
             (perf_counter() - started) * 1000,
         )

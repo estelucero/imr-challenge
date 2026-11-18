@@ -99,8 +99,8 @@ def test_gaps_route_to_clarifier_without_calling_creator(monkeypatch):
     )
     creator = StubAgent(None)
 
-    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _provider: analyst)
-    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _provider: clarifier)
+    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _model, _provider: analyst)
+    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _model, _provider: clarifier)
     monkeypatch.setattr(orchestrator_module, "get_bpmn_validator", lambda *_: StubAgent(None))
     monkeypatch.setattr(
         orchestrator_module,
@@ -137,8 +137,8 @@ def test_complete_spec_routes_to_creator_without_clarifier(monkeypatch):
         )
     )
 
-    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _provider: analyst)
-    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _provider: clarifier)
+    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _model, _provider: analyst)
+    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _model, _provider: clarifier)
     monkeypatch.setattr(orchestrator_module, "get_bpmn_validator", lambda *_: StubAgent(None))
     monkeypatch.setattr(
         orchestrator_module,
@@ -176,8 +176,8 @@ def test_analyst_failure_does_not_fall_through_to_creator(monkeypatch):
     clarifier = StubAgent({"recipient": "analyst", "message": "Proceso de pedidos", "questions": []})
     creator = StubAgent(None)
 
-    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _provider: analyst)
-    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _provider: clarifier)
+    monkeypatch.setattr(orchestrator_module, "get_process_analyst", lambda _model, _provider: analyst)
+    monkeypatch.setattr(orchestrator_module, "get_clarifier", lambda _model, _provider: clarifier)
     monkeypatch.setattr(orchestrator_module, "get_bpmn_validator", lambda *_: StubAgent(None))
     monkeypatch.setattr(
         orchestrator_module,
