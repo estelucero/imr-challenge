@@ -1,11 +1,23 @@
 
-from fastapi import FastAPI, Request, HTTPException
-from langserve import add_routes
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.models.chat_request import ChatRequest, ChatResponse
 
 from app.agents.bpmn_creator import get_bpmn_creator
+origins = [
+    "http://localhost:3000",
+]
 
 app = FastAPI(title="BPMN Generator API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 def health():

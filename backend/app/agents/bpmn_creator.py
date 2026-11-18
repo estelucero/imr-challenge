@@ -28,7 +28,7 @@ def get_bpmn_creator(model_name: str = DEFAULT_MODEL, provider: str = DEFAULT_PR
     Las sesiones son independientes pero el checkpointer es singleton.
     """
     model = init_chat_model(
-        f"{provider}:{model_name}",
+        f"{provider}:{model_name or DEFAULT_MODEL}",
         temperature=0,
         timeout = 300_000 if provider == "openrouter" else 300,
         max_tokens=25000,

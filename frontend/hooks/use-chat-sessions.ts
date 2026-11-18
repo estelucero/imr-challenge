@@ -118,7 +118,7 @@ export function useChatSessions() {
             setActiveId(session.id);
             writeActiveSessionId(session.id);
             writeSessions(next);
-            return;
+            return session.id;
         }
 
         const next = sessions.map((session) =>
@@ -139,6 +139,7 @@ export function useChatSessions() {
         stateRef.current = { sessions: next, activeId };
         setSessions(next);
         writeSessions(next);
+        return activeId;
     }
 
     function updateMessageBpmn(messageId: string, xml: string) {

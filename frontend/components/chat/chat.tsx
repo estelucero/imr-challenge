@@ -25,7 +25,7 @@ import {
     MessageScrollerProvider,
 } from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
-import { buildMockBpmn } from "@/lib/bpmn/mock";
+import { sendChat } from "@/lib/chat/api";
 
 const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
     ssr: false,
@@ -34,7 +34,7 @@ const BpmnViewer = dynamic(() => import("@/components/bpmn/bpmn-viewer"), {
 
 type ChatProps = {
     messages: ChatMessage[];
-    onUserMessage: (text: ChatMessage) => void;
+    onUserMessage: (text: ChatMessage) => string;
     onAssistantMessage: (message: ChatMessage) => void;
     onUpdateBpmnXml: (messageId: string, xml: string) => void;
 };
@@ -54,30 +54,25 @@ export function Chat({
     } | null>(null);
     const formRef = React.useRef<HTMLFormElement>(null);
 
-    function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-
         const text = draft.trim();
         if (!text || isLoading) return;
-
-        onUserMessage({ id: crypto.randomUUID(), role: "user", text });
-        setDraft("");
+        const sessionId = onUserMessage({ id: crypto.randomUUID(), role: "user", text });
         setIsLoading(true);
-
-        const xml = buildMockBpmn(text);
-
-        // Mock de la respuesta del chatbot: cuando exista el backend,
-        // reemplazar por un fetch que devuelva { text, bpmnXml }.
-        window.setTimeout(() => {
+        try {
+            const res = await sendChat(sessionId, text);
             onAssistantMessage({
-                id: crypto.randomUUID(),
-                role: "assistant",
-                text: `Listo, generé el proceso para "${text}". Tocá el diagrama para editarlo.`,
-                bpmn: { id: crypto.randomUUID(), name: text, xml },
+                id: crypto.randomUUID(), role: "assistant",
+                text: res.message,
+                bpmn: res.bpmn_xml ? { id: crypto.randomUUID(), name: text, xml: res.bpmn_xml } : undefined,
             });
+        } catch {
+            onAssistantMessage({ id: crypto.randomUUID(), role: "assistant", text: "No se pudo contactar al servidor. Intentá de nuevo." });
+        } finally {
             setIsLoading(false);
-        }, 900);
-    }
+        }
+    };
 
     function openEditor(message: ChatMessage) {
         if (!message.bpmn) return;
