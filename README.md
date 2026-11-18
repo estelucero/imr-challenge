@@ -29,7 +29,7 @@ imr-challenge/
 
 ## Configuracion del backend
 
-Crear o completar el archivo `backend/.env` con las siguientes API keys:
+Crear el archivo `backend/.env` con las siguientes API keys:
 
 ```env
 OPENAI_API_KEY=sk-...
