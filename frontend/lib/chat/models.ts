@@ -7,17 +7,34 @@ export type ChatModel = {
     vendor: string;
 };
 
-// OpenAI no tiene API pública de modelos (/v1/models requiere key),
-// así que mantenemos una lista curada de los modelos de chat vigentes.
-const OPENAI_MODELS: ChatModel[] = [
-    { id: "gpt-5", provider: "openai", name: "GPT-5", vendor: "OpenAI" },
-    { id: "gpt-5-mini", provider: "openai", name: "GPT-5 mini", vendor: "OpenAI" },
-    { id: "gpt-5-nano", provider: "openai", name: "GPT-5 nano", vendor: "OpenAI" },
-    { id: "gpt-4.1", provider: "openai", name: "GPT-4.1", vendor: "OpenAI" },
-    { id: "gpt-4.1-mini", provider: "openai", name: "GPT-4.1 mini", vendor: "OpenAI" },
-    { id: "gpt-4o", provider: "openai", name: "GPT-4o", vendor: "OpenAI" },
-    { id: "gpt-4o-mini", provider: "openai", name: "GPT-4o mini", vendor: "OpenAI" },
+// Lista curada de la familia GPT que ofrezco en el selector. De cada familia
+// (Luna, Sol, Terra, Astra) expongo la generación más nueva disponible en
+// base + Pro. Desde este único array derivan las listas de OpenAI (ids sin
+// prefijo) y de OpenRouter (ids con el prefijo del vendor).
+const GPT_MODELS = [
+    { id: "gpt-6-luna", name: "GPT-6 Luna" },
+    { id: "gpt-6-luna-pro", name: "GPT-6 Luna Pro" },
+    { id: "gpt-6.2-sol", name: "GPT-6.2 Sol" },
+    { id: "gpt-6.2-sol-pro", name: "GPT-6.2 Sol Pro" },
+    { id: "gpt-6.1-terra", name: "GPT-6.1 Terra" },
+    { id: "gpt-6.1-terra-pro", name: "GPT-6.1 Terra Pro" },
+    { id: "gpt-6.2-astra", name: "GPT-6.2 Astra" },
+    { id: "gpt-6.2-astra-pro", name: "GPT-6.2 Astra Pro" },
 ];
+
+const OPENAI_MODELS: ChatModel[] = GPT_MODELS.map((m) => ({
+    id: m.id,
+    provider: "openai" as const,
+    name: m.name,
+    vendor: "OpenAI",
+}));
+
+const OPENROUTER_MODELS: ChatModel[] = GPT_MODELS.map((m) => ({
+    id: "openai/" + m.id,
+    provider: "openrouter" as const,
+    name: m.name,
+    vendor: "OpenAI",
+}));
 
 export const DEFAULT_MODEL: ChatModel = {
     id: "openai/gpt-6-luna",
@@ -26,93 +43,8 @@ export const DEFAULT_MODEL: ChatModel = {
     vendor: "OpenAI",
 };
 
-// Etiquetas legibles para el vendor de cada slug de OpenRouter.
-const VENDOR_LABELS: Record<string, string> = {
-    openai: "OpenAI",
-    anthropic: "Anthropic",
-    google: "Google",
-    deepseek: "DeepSeek",
-    "x-ai": "xAI",
-    mistralai: "Mistral AI",
-    qwen: "Qwen",
-    "meta-llama": "Meta Llama",
-    moonshotai: "Moonshot AI",
-    "z-ai": "Z.AI",
-    amazon: "Amazon",
-    cohere: "Cohere",
-};
-
-const OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models";
-const OPENROUTER_PROVIDERS = new Set([
-    "openai",
-    "anthropic",
-    "google",
-    "deepseek",
-    "x-ai",
-    "mistralai",
-    "qwen",
-    "meta-llama",
-    "moonshotai",
-    "z-ai",
-    "amazon",
-    "cohere",
-]);
-
-// OpenRouter publica su lista de modelos en una API pública (sin auth y con
-// CORS abierto), así que el front puede consultarla directamente. Filtramos a
-// modelos de chat de texto, descartamos variantes (`:free`, `:beta`, ...) y
-// nos quedamos con proveedores conocidos, para que los IDs que llegan al
-// backend sean siempre válidos.
-let openRouterModelsCache: ChatModel[] | null = null;
-
-export async function fetchOpenRouterModels(): Promise<ChatModel[]> {
-    if (openRouterModelsCache) return openRouterModelsCache;
-
-    const res = await fetch(OPENROUTER_MODELS_URL);
-    if (!res.ok) throw new Error(`OpenRouter respondió ${res.status}`);
-
-    const data = (await res.json()) as {
-        data: {
-            id: string;
-            name: string;
-            architecture: { output_modalities: string[] };
-        }[];
-    };
-
-    const models = data.data
-        .filter(
-            (m) =>
-                !m.id.includes(":") &&
-                !/-exp$/.test(m.id) &&
-                !/guard|safeguard/.test(m.id) &&
-                m.architecture.output_modalities.length === 1 &&
-                m.architecture.output_modalities[0] === "text" &&
-                OPENROUTER_PROVIDERS.has(m.id.split("/")[0]),
-        )
-        .map((m) => {
-            const slug = m.id.split("/", 1)[0];
-            const vendor = VENDOR_LABELS[slug] ?? slug;
-
-            return {
-                id: m.id,
-                provider: "openrouter" as const,
-                // La API devuelve nombres tipo "OpenAI: GPT-5 mini"; quitamos
-                // el prefijo para que el nombre puro del modelo quede visible.
-                name: m.name.replace(/^[^:]+:\s*/, "") || m.name,
-                vendor: vendor,
-            };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    openRouterModelsCache = models;
-    return models;
-}
-
 export async function getModels(): Promise<ChatModel[]> {
-    const [openRouterModels] = await Promise.all([
-        fetchOpenRouterModels().catch(() => [] as ChatModel[]),
-    ]);
-    return [...OPENAI_MODELS, ...openRouterModels];
+    return [...OPENAI_MODELS, ...OPENROUTER_MODELS];
 }
 
 const STORAGE_KEY = "imr-chat-model";
