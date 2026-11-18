@@ -22,6 +22,7 @@ services:
       - ./backend/.env
     volumes:
       - ./backend/app:/code/app
+      - ./backend/tests:/code/tests
     ports:
       - "8000:8000"
   

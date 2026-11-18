@@ -20,6 +20,13 @@ DI_VISUAL_TAGS = (
     f"{{{BPMNDI_NS}}}BPMNShape",
     f"{{{BPMNDI_NS}}}BPMNEdge",
 )
+REFERENCE_ATTRIBUTES = {
+    f"{{{MODEL_NS}}}participant": ("processRef",),
+    f"{{{BPMNDI_NS}}}BPMNPlane": ("bpmnElement",),
+}
+REFERENCE_TEXT_TAGS = {
+    f"{{{MODEL_NS}}}flowNodeRef", f"{{{MODEL_NS}}}incoming", f"{{{MODEL_NS}}}outgoing",
+}
 
 
 def validate_bpmn_syntax(xml: str | None) -> dict:
@@ -93,6 +100,12 @@ def _check_references(
     ids: dict[str, ET.Element],
     errors: list[dict[str, str]],
 ) -> None:
+    processes = {}
+    for process in root.iter(f"{{{MODEL_NS}}}process"):
+        for child in process.iter():
+            if child.get("id"):
+                processes[child.get("id")] = process.get("id")
+
     for element in root.iter():
         if element.tag in FLOW_TAGS:
             for attribute in ("sourceRef", "targetRef"):
@@ -103,6 +116,12 @@ def _check_references(
                         "DANGLING_REFERENCE",
                         f"{attribute} '{ref}' does not reference an existing id.",
                     )
+            if element.tag == f"{{{MODEL_NS}}}sequenceFlow":
+                source, target = element.get("sourceRef"), element.get("targetRef")
+                if source in ids and target in ids:
+                    source_process, target_process = processes.get(source), processes.get(target)
+                    if source_process is None or target_process is None or source_process != target_process:
+                        _add_error(errors, "INVALID_SEQUENCE_SCOPE", f"Sequence flow '{element.get('id')}' must connect nodes in the same process.")
         elif element.tag in DI_VISUAL_TAGS:
             ref = element.get("bpmnElement")
             if not ref or ref not in ids:
@@ -111,3 +130,17 @@ def _check_references(
                     "DANGLING_DI_REFERENCE",
                     f"bpmnElement '{ref}' does not reference an existing id.",
                 )
+        for attribute in REFERENCE_ATTRIBUTES.get(element.tag, ()):
+            ref = element.get(attribute)
+            # A black-box participant may omit processRef; a plane may not.
+            if (ref or element.tag == f"{{{BPMNDI_NS}}}BPMNPlane") and ref not in ids:
+                _add_error(errors, "DANGLING_REFERENCE", f"{attribute} '{ref}' does not reference an existing id.")
+            elif ref in ids:
+                allowed = ({f"{{{MODEL_NS}}}process"} if element.tag == f"{{{MODEL_NS}}}participant"
+                           else {f"{{{MODEL_NS}}}process", f"{{{MODEL_NS}}}collaboration"})
+                if ids[ref].tag not in allowed:
+                    _add_error(errors, "INVALID_REFERENCE_TYPE", f"{attribute} '{ref}' references an invalid element type.")
+        if element.tag in REFERENCE_TEXT_TAGS:
+            ref = (element.text or "").strip()
+            if ref not in ids:
+                _add_error(errors, "DANGLING_REFERENCE", f"{element.tag.split('}')[-1]} '{ref}' does not reference an existing id.")

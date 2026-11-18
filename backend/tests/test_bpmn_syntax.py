@@ -130,3 +130,13 @@ def test_rejects_missing_diagram():
 
     assert not result["valid"]
     assert "MISSING_DI" in codes(result)
+
+
+def test_rejects_invalid_plane_reference_type():
+    xml = VALID_XML.replace('bpmnElement="Collaboration_1"', 'bpmnElement="Task_1"')
+    assert "INVALID_REFERENCE_TYPE" in codes(validate_bpmn_syntax(xml))
+
+
+def test_rejects_sequence_flow_outside_process():
+    xml = VALID_XML.replace('targetRef="Task_1"', 'targetRef="Participant_1"', 1)
+    assert "INVALID_SEQUENCE_SCOPE" in codes(validate_bpmn_syntax(xml))
